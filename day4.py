@@ -1,5 +1,6 @@
 import os
 import json
+import requests
 from openai import OpenAI
 
 client = OpenAI(
@@ -9,7 +10,35 @@ client = OpenAI(
 MAX_SPEND_USD = 0.10
 total_cost = 0.0
 
-TOOLS = [
+ALLOWED_TOOLS = ["get_weather", "search_web"]
+TOOLS =[
+    { "type": "function",
+        "function": {
+            "name": "search_web",
+            "description": "在网页上搜索信息",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "搜索关键词"}
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_file",
+            "description": "删除一个文件",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {"type": "string", "description": "要删除的文件名"}
+                },
+                "required": ["filename"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -26,6 +55,25 @@ TOOLS = [
     }
 ]
 
+def search_web(query):
+    print("搜索被调用了：", query)
+    key = os.environ.get("DEEPSEEK_API_KEY")
+    response = requests.post(
+        "https://api.deepseek.com/v1/tools/search",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "query": query,
+            "count": 3,
+        },
+    )
+    response.raise_for_status()
+    lines = []
+    for result in response.json()["results"]:
+        lines.append(f"{result['title']}：{result['snippet']}（{result['url']}）")
+    return "\n".join(lines)
 
 def get_weather(city):
     if city == "广州":
@@ -61,13 +109,30 @@ def chat_loop(history, user_text, max_steps=5):
             return message.content
         history.append(message)
         for call in message.tool_calls:
+            if call.function.name not in ALLOWED_TOOLS:
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": f"工具 {call.function.name} 不在白名单中，不允许调用。"
+                })
+                print(f"工具 {call.function.name} 被白名单拦住了")
+                continue
             args = json.loads(call.function.arguments)
-            info = get_weather(args["city"])
-            print("工具被调用了：", args["city"])
-            history.append({
-                "role": "tool",
-                "tool_call_id": call.id,
-                "content": f"{info['city']}今天的天气是{info['weather']}，温度是{info['temp']}。",
+            if call.function.name == "search_web":
+                info = search_web(args["query"])
+                print("工具被调用了：", args["query"])
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": info,
+                })
+            elif call.function.name == "get_weather":
+                info = get_weather(args["city"])
+                print("工具被调用了：", args["city"])
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": call.id,
+                    "content": f"{info['city']}今天的天气是{info['weather']}，温度是{info['temp']}。",
             })
         
     return "步数用完了"
@@ -86,3 +151,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
