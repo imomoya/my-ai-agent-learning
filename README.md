@@ -7,7 +7,7 @@
 - **Day 1：`day1.py`** — 假模型 + JSON 对话。`fake_llm` 按规则返回 JSON，`parse_json_response` 校验，`chat_once` 跑一轮对话。
 - **Day 2：`day2.py`** — 第一次真正调用工具。模型只返回 topic，程序按 topic 调 `get_weather`，再把结果拼进回答。
 - **Day 3：`day3.py`** — 循环。`chat_loop` 最多 5 轮，工具结果以 tool 消息写回 history，一问可以查多个城市。
-- **Day 4：`day4.py`** — 接真实 DeepSeek API。模型自己决定调哪个工具（function calling），工具结果以含 tool_call_id 的 tool 消息喂回；带每轮 tokens/花费日志和累计花费上限、工具白名单（`ALLOWED_TOOLS`，名单外的工具会被拦住并把错误喂回模型），还有真联网搜索工具 `search_web`（DeepSeek Search API），模型自己决定什么时候搜。
+- **Day 4：`day4.py`** — 接真实 DeepSeek API。模型自己决定调哪个工具（function calling），工具结果以含 tool_call_id 的 tool 消息喂回；带每轮 tokens/花费日志和累计花费上限、工具白名单（`ALLOWED_TOOLS`，名单外的工具会被拦住并把错误喂回模型），还有真联网搜索工具 `search_web`（DeepSeek Search API），模型自己决定什么时候搜；还有记忆裁剪（`trim_history`，只留 system + 最近 2 问，history 不再无限变长）。
 
 ## 运行
 

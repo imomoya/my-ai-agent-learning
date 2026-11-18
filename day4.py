@@ -86,6 +86,23 @@ def get_weather(city):
         return {"city": "东莞", "weather": "小雨", "temp": "25°C"}
     else:
         return {"city": city, "weather": "未知", "temp": "未知"}
+    
+def trim_history(history, keep_turns):
+    positions = []
+    for i, m in enumerate(history):
+        if isinstance(m, dict):
+            role = m["role"]
+        else:
+            role = m.role
+        if role == "user":
+            positions.append(i)
+    if len(positions) <= keep_turns:
+        return history
+    cut = positions[-keep_turns]
+    new_history = history[:1] + history[cut:]
+    print(f"裁剪前 {len(history)} 条，裁剪后 {len(new_history)} 条")
+    return new_history
+
 
 
 def chat_loop(history, user_text, max_steps=5):
@@ -145,8 +162,10 @@ def main():
         user_text = input("你: ").strip()
         if user_text.lower() == "quit":
             break
+        history = trim_history(history, 2)
         result = chat_loop(history, user_text)
         print("Agent:", result)
+        print(history)
 
 
 if __name__ == "__main__":
