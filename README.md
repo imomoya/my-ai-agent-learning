@@ -9,7 +9,7 @@
 - **Day 3：`day3.py`** — 循环。`chat_loop` 最多 5 轮，工具结果以 tool 消息写回 history，一问可以查多个城市。
 - **Day 4：`day4.py`** — 接真实 DeepSeek API。模型自己决定调哪个工具（function calling），工具结果以含 tool_call_id 的 tool 消息喂回；带每轮 tokens/花费日志和累计花费上限、工具白名单（`ALLOWED_TOOLS`，名单外的工具会被拦住并把错误喂回模型），还有真联网搜索工具 `search_web`（DeepSeek Search API），模型自己决定什么时候搜；还有记忆裁剪（`trim_history`，只留 system + 最近 2 问，history 不再无限变长）。
 - **LangGraph：`lg1.py`** — 用 LangGraph 重建 Day 4 的循环：StateGraph + chatbot 节点 + tools 节点 + 条件边（`route`），查天气和联网搜索两条线都跑通；配 `MemorySaver` + `thread_id`，多轮对话记得上文。
-- **RAG：`rag1.py` / `rag2.py` / `rag3.py`** — 手写 RAG：`knowledge/` 里 3 篇短文档，`chunk_text` 按 200 字切块（重叠 50 字）；`retrieve` 按问题里的字出现次数给每个块打分、取最高分；`rag3.py` 把找出的块连同问题喂给模型照着资料回答。问“agent由哪几部分组成”，找回 agent 那块，模型照着资料答出五部分。
+- **RAG：`rag1.py` / `rag2.py` / `rag3.py`** — 手写 RAG：`knowledge/` 里 3 篇短文档，`chunk_text` 按 200 字切块（重叠 50 字）；`retrieve` 按问题里的字出现次数给每个块打分、取最高分；`rag3.py` 把找出的块连同问题喂给模型照着资料回答。问“agent由哪几部分组成”，找回 agent 那块，模型照着资料答出五部分。后续升级成向量版：`embed1.py`（embedding 探针，向量长度 512、余弦相似度）、`chroma1.py`（块的向量存进 Chroma、按相似度查）、`rag4.py`（向量检索 + 生成），问换说法的“agent能自己办事吗”也能找回 agent 那块。
 
 ## 运行
 
@@ -48,6 +48,17 @@ $env:DEEPSEEK_API_KEY="你的 Key"
 python rag3.py
 ```
 
+向量版要装 `sentence-transformers` 和 `chromadb`（`rag4.py` 还需要 Key，`embed1.py` / `chroma1.py` 不用）：
+
+```bash
+pip install sentence-transformers chromadb
+```
+
+```powershell
+$env:DEEPSEEK_API_KEY="你的 Key"
+python rag4.py
+```
+
 ## 说明
 
-学习项目，不是生产代码。`get_weather` 返回的是写死的假数据，不是真实天气；重点是 Agent 循环、工具调用和上下文管理这些机制本身。`TOOLS` 里的 `delete_file` 是白名单演示用的诱饵，只有说明书、没有实现，调用会被白名单拦住。`search_web` 是真的联网搜索，每次成功搜索另外计费，不走 tokens 花费统计。`lg1.py` 里的 `get_weather` 同样是假数据；`MemorySaver` 只存内存，关掉程序对话记录就没了。RAG 这里是手写关键词检索教学版，`retrieve` 只按字出现次数打分；真 RAG 用 Embedding + 向量数据库，后续再升级。
+学习项目，不是生产代码。`get_weather` 返回的是写死的假数据，不是真实天气；重点是 Agent 循环、工具调用和上下文管理这些机制本身。`TOOLS` 里的 `delete_file` 是白名单演示用的诱饵，只有说明书、没有实现，调用会被白名单拦住。`search_web` 是真的联网搜索，每次成功搜索另外计费，不走 tokens 花费统计。`lg1.py` 里的 `get_weather` 同样是假数据；`MemorySaver` 只存内存，关掉程序对话记录就没了。RAG 这里是手写关键词检索教学版，`retrieve` 只按字出现次数打分；向量版用本地 BAAI/bge-small-zh-v1.5 算 embedding、Chroma 存向量按相似度查。DeepSeek 官方 API 没有 embedding 接口，所以向量这一步不能用 DeepSeek Key。
