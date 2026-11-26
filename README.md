@@ -10,6 +10,7 @@
 - **Day 4：`day4.py`** — 接真实 DeepSeek API。模型自己决定调哪个工具（function calling），工具结果以含 tool_call_id 的 tool 消息喂回；带每轮 tokens/花费日志和累计花费上限、工具白名单（`ALLOWED_TOOLS`，名单外的工具会被拦住并把错误喂回模型），还有真联网搜索工具 `search_web`（DeepSeek Search API），模型自己决定什么时候搜；还有记忆裁剪（`trim_history`，只留 system + 最近 2 问，history 不再无限变长）。
 - **LangGraph：`lg1.py`** — 用 LangGraph 重建 Day 4 的循环：StateGraph + chatbot 节点 + tools 节点 + 条件边（`route`），查天气和联网搜索两条线都跑通；配 `MemorySaver` + `thread_id`，多轮对话记得上文。
 - **RAG：`rag1.py` / `rag2.py` / `rag3.py`** — 手写 RAG：`knowledge/` 里 3 篇短文档，`chunk_text` 按 200 字切块（重叠 50 字）；`retrieve` 按问题里的字出现次数给每个块打分、取最高分；`rag3.py` 把找出的块连同问题喂给模型照着资料回答。问“agent由哪几部分组成”，找回 agent 那块，模型照着资料答出五部分。后续升级成向量版：`embed1.py`（embedding 探针，向量长度 512、余弦相似度）、`chroma1.py`（块的向量存进 Chroma、按相似度查）、`rag4.py`（向量检索 + 生成），问换说法的“agent能自己办事吗”也能找回 agent 那块。
+- **LangChain：`lc1.py` / `lc2.py` / `lc3.py` / `lc4.py`** — 把手写 RAG 的四步一步一步换成 LangChain 组件：`lc1.py` 只换向量存查（`HuggingFaceEmbeddings` + `Chroma.from_texts` + `similarity_search`）；`lc2.py` 换切块（`RecursiveCharacterTextSplitter`，`chunk_size=200`、`chunk_overlap=50`）；`lc3.py` 换模型调用（`ChatOpenAI`，DeepSeek 走 `base_url`，Key 仍走环境变量）；`lc4.py` 用提示词模板 + 链拼起来（`ChatPromptTemplate` + `prompt | llm`，`invoke` 传 `{"context": best, "question": ...}`）。问换说法的“agent能自己办事吗”，链跑通，模型照着资料答。
 
 ## 运行
 
@@ -57,6 +58,17 @@ pip install sentence-transformers chromadb
 ```powershell
 $env:DEEPSEEK_API_KEY="你的 Key"
 python rag4.py
+```
+
+LangChain 版要装 `langchain`、`langchain-huggingface`、`langchain-chroma`、`langchain-text-splitters`、`langchain-openai`（`lc3.py` / `lc4.py` 还需要 Key，`lc1.py` / `lc2.py` 不用）：
+
+```bash
+pip install langchain langchain-huggingface langchain-chroma langchain-text-splitters langchain-openai
+```
+
+```powershell
+$env:DEEPSEEK_API_KEY="你的 Key"
+python lc4.py
 ```
 
 ## 说明
